@@ -1,0 +1,285 @@
+{
+  "tools": [
+    {
+      "id": "video",
+      "name": "Video analyzer",
+      "desc": "Upload a clip or paste a link. Get a score, timestamped fixes and a format check.",
+      "cta": "Analyze a video"
+    },
+    {
+      "id": "hook",
+      "name": "Hook analyzer",
+      "desc": "Paste your opening line. See how fast it lands, what it promises and how to tighten it.",
+      "cta": "Analyze a hook"
+    },
+    {
+      "id": "script",
+      "name": "Script analyzer",
+      "desc": "Paste a full or partial script. Get a pacing map with the lines most likely to lose people.",
+      "cta": "Analyze a script"
+    }
+  ],
+  "plans": [
+    {
+      "id": "starter",
+      "name": "Starter",
+      "price": 9,
+      "who": "For creators posting a few times a week",
+      "recommended": false,
+      "features": [
+        "Unlimited hook and script checks",
+        "20 video reports a month",
+        "Report library"
+      ]
+    },
+    {
+      "id": "growth",
+      "name": "Growth",
+      "price": 19,
+      "who": "For creators posting daily",
+      "recommended": true,
+      "features": [
+        "Everything in Starter",
+        "Unlimited video reports",
+        "Pacing map with drop-off pins",
+        "Copyable report summaries"
+      ]
+    },
+    {
+      "id": "studio",
+      "name": "Studio",
+      "price": 49,
+      "who": "For teams and agencies",
+      "recommended": false,
+      "features": [
+        "Everything in Growth",
+        "Five seats",
+        "Shared client reports",
+        "Batch queue"
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "title": "Add your video",
+      "body": "Upload a file or paste a TikTok, Reels or Shorts link. Hooks and scripts work as plain text."
+    },
+    {
+      "title": "Swipeproof reviews it",
+      "body": "It checks the opening, pacing, format and the ask at the end."
+    },
+    {
+      "title": "Read your score",
+      "body": "One number from 0 to 100, with a score for each area behind it."
+    },
+    {
+      "title": "Fix and re-check",
+      "body": "Every finding has a timecode and a specific change. Edit, then run it again."
+    }
+  ],
+  "samples": [
+    {
+      "at": "0:00 to 0:03",
+      "tag": "Hook",
+      "prob": "The opening greets the audience before anything happens.",
+      "fix": "Open on the finished result, then explain how you got there."
+    },
+    {
+      "at": "0:10 to 0:14",
+      "tag": "Pacing",
+      "prob": "One sentence runs 31 words with no visual change.",
+      "fix": "Split it into two beats and cut to a new angle between them."
+    },
+    {
+      "at": "0:19 to 0:22",
+      "tag": "Ending",
+      "prob": "The video stops without asking for anything.",
+      "fix": "Close with one ask, such as a question viewers can answer in a comment."
+    }
+  ],
+  "faq": [
+    {
+      "q": "Is the feedback generic?",
+      "a": "No. Each finding quotes a timecode or a line from what you submitted, and the fix refers to that moment. If a rule does not apply to your video it does not appear."
+    },
+    {
+      "q": "What if a finding is wrong?",
+      "a": "Treat the score as a second opinion. Each area shows why it scored the way it did, so you can ignore one you disagree with and re-run after edits."
+    },
+    {
+      "q": "Does it work for my niche?",
+      "a": "The checks cover structure: how fast the opening lands, how long each beat runs, whether the format fits a vertical feed. Those apply to tutorials, clips, product videos and talking-head content alike."
+    },
+    {
+      "q": "I already see my retention graph. Why use this?",
+      "a": "A retention graph shows where people left after you posted. Swipeproof points at likely weak moments before you post and suggests a change for each one."
+    },
+    {
+      "q": "What happens to my videos?",
+      "a": "In this demo, uploaded files are read inside your browser and never sent anywhere. Reports are saved only in this browser."
+    },
+    {
+      "q": "Can I try it without paying?",
+      "a": "Yes. All three tools run without an account. Paid plans in this demo are placeholders and no payment is taken."
+    }
+  ],
+  "platforms": [
+    {
+      "id": "tiktok",
+      "name": "TikTok",
+      "line": "Built for a feed where the next video is one flick away.",
+      "tips": [
+        {
+          "title": "Lead with the payoff",
+          "body": "Show the result in the first second. Context can follow once people have a reason to stay."
+        },
+        {
+          "title": "Keep text clear of the edges",
+          "body": "Buttons sit on the right and the caption sits at the bottom, so place on-screen text in the upper middle."
+        },
+        {
+          "title": "Write for sound off and sound on",
+          "body": "Add captions for silent viewers and keep the first spoken line short for everyone else."
+        }
+      ]
+    },
+    {
+      "id": "instagram",
+      "name": "Instagram Reels",
+      "line": "Built for a grid, a feed and a Reels tab at once.",
+      "tips": [
+        {
+          "title": "Pick a cover that reads small",
+          "body": "The cover shows in your profile grid, so choose a frame with one clear subject and few words."
+        },
+        {
+          "title": "Make the first frame a still worth pausing on",
+          "body": "Reels autoplay in the main feed next to photos, so the opening frame has to hold up as an image."
+        },
+        {
+          "title": "Give people a reason to send it",
+          "body": "End with something a viewer would forward to a friend, such as a checklist or a single surprising fact."
+        }
+      ]
+    },
+    {
+      "id": "shorts",
+      "name": "YouTube Shorts",
+      "line": "Built for viewers who also search.",
+      "tips": [
+        {
+          "title": "Say the topic out loud early",
+          "body": "A plain statement of the topic in the first line helps the right viewers recognize the video is for them."
+        },
+        {
+          "title": "Title it like an answer",
+          "body": "Write the title as the phrase someone would type, then deliver that answer in the video."
+        },
+        {
+          "title": "Point to the longer video",
+          "body": "If the Short comes from a longer upload, tell viewers where the full version lives."
+        }
+      ]
+    }
+  ],
+  "posts": [
+    {
+      "slug": "first-three-seconds",
+      "title": "What the first three seconds have to do",
+      "category": "Hooks",
+      "publishedOn": "2026-11-02",
+      "minutes": 3,
+      "tool": "hook",
+      "excerpt": "An opening has three jobs. Most weak hooks skip the second one.",
+      "body": [
+        "An opening line has three jobs: stop the thumb, name the topic and promise something. Greetings do none of them, which is why a hello costs you viewers before the video has started.",
+        "The job people skip most is naming the topic. A dramatic line with no subject makes viewers curious for half a second, then they leave because they cannot tell whether the video is for them.",
+        "A quick test: read only your first sentence to someone. If they can tell you what the video is about and what they will get from it, the hook is doing its work."
+      ]
+    },
+    {
+      "slug": "spot-the-drop",
+      "title": "How to find the line where viewers leave",
+      "category": "Retention",
+      "publishedOn": "2026-10-26",
+      "minutes": 4,
+      "tool": "script",
+      "excerpt": "Drop-offs cluster around a few predictable moments. Here is where to look first.",
+      "body": [
+        "Viewers rarely leave at random. They leave when a sentence runs long, when the picture has not changed for a while, or when you start explaining before showing.",
+        "Read your script aloud with a timer. Mark any sentence that takes more than about eight seconds to say. Those are the first candidates to split or cut.",
+        "Then look at the footage over the same lines. If the frame is identical for that whole stretch, add a cut, a zoom or an on-screen label so the eye has something new."
+      ]
+    },
+    {
+      "slug": "script-beats",
+      "title": "Write scripts in beats",
+      "category": "Scripts",
+      "publishedOn": "2026-10-19",
+      "minutes": 3,
+      "tool": "script",
+      "excerpt": "A beat is one idea you can say in a breath. Scripts built from beats are easier to edit.",
+      "body": [
+        "A beat is a single idea you can say in one breath, usually under fifteen words. Writing in beats forces each line to earn its place.",
+        "Lay the beats out as a list. The first is the hook, the second says what the viewer will get, the middle ones deliver it and the last one asks for something.",
+        "When a video feels slow, you can now see why. Either a beat is carrying two ideas or two beats are saying the same thing."
+      ]
+    },
+    {
+      "slug": "one-ask",
+      "title": "End on one ask",
+      "category": "Engagement",
+      "publishedOn": "2026-10-12",
+      "minutes": 2,
+      "tool": "script",
+      "excerpt": "Three calls to action get less response than one. Pick the one that fits the video.",
+      "body": [
+        "Asking viewers to like, follow, comment and share in one breath gives them four things to ignore. One ask gets more response than several.",
+        "Match the ask to the video. A tutorial earns a save. An opinion earns a comment. A funny clip earns a share.",
+        "Put the ask after the payoff. If it arrives before the viewer has what they came for, it reads as a toll."
+      ]
+    },
+    {
+      "slug": "readable-captions",
+      "title": "Captions people can read at a glance",
+      "category": "Editing",
+      "publishedOn": "2026-10-05",
+      "minutes": 3,
+      "tool": "video",
+      "excerpt": "Caption problems are usually timing problems. A few rules cover most of them.",
+      "body": [
+        "Most caption problems come from timing. Text that appears for less than a second and a half is gone before most people finish reading it.",
+        "Keep each caption to a short phrase and keep it away from the edges of the frame, where app buttons and descriptions cover it.",
+        "Contrast matters more than font choice. Light text needs a dark backing and dark text needs a light one, because the footage behind it keeps changing."
+      ]
+    },
+    {
+      "slug": "shorts-from-long",
+      "title": "Cutting long videos into shorts that stand alone",
+      "category": "Platforms",
+      "publishedOn": "2026-09-28",
+      "minutes": 4,
+      "tool": "video",
+      "excerpt": "A clip lifted from a longer video needs its own opening and its own ending.",
+      "body": [
+        "A good moment inside a long video depends on what came before it. Lifted out on its own, it often starts mid-thought.",
+        "Give each clip a new first line that states the topic. One sentence recorded after the fact or a text label on screen is enough.",
+        "Reframe for vertical as well. A wide two-person shot becomes two small faces on a phone, so crop to whoever is speaking."
+      ]
+    },
+    {
+      "slug": "vertical-first",
+      "title": "Frame for vertical first",
+      "category": "Platforms",
+      "publishedOn": "2026-09-21",
+      "minutes": 2,
+      "tool": "video",
+      "excerpt": "Shooting wide and cropping later loses resolution and composition. Plan the tall frame.",
+      "body": [
+        "If a video is headed for a phone feed, compose it tall from the start. Cropping a wide shot throws away most of the pixels and usually cuts off something that mattered.",
+        "Put the subject in the middle third of the frame and leave room above and below for text.",
+        "Check the export too. A vertical frame at 1080 by 1920 keeps text and faces sharp on current phones."
+      ]
+    }
+  ]
+}
