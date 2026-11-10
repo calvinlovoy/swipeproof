@@ -65,7 +65,7 @@ export default function Home() {
       <div className="wrap">
         <section className="hero">
           <div className="stack" style={{ gap: 20 }}>
-            <p className="eyebrow"><span className="chip">TikTok</span><span className="chip">Reels</span><span className="chip">Shorts</span></p>
+            <p className="works"><svg viewBox="0 0 18 22" aria-hidden="true"><rect x="1.25" y="1.25" width="15.5" height="19.5" rx="3.5" fill="none" stroke="currentColor" strokeWidth="2"/><path d="M5 14.5c2 0 2.5-5 4.5-5s2 3 3.5 3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg><span>Works with</span><b>TikTok</b><b>Reels</b><b>Shorts</b></p>
             <h1>Find the second they <em>swipe</em>.</h1>
             <p className="lede">Paste a hook, a script or a video. Swipeproof scores it from 0 to 100 and tells you what to change before you post.</p>
             <div className="row">
@@ -83,7 +83,7 @@ export default function Home() {
         <div className="grid">
           {samples.map((s) => (
             <div className="card" key={s.at}>
-              <p className="eyebrow"><span className="tc">{s.at}</span><span className="chip">{s.tag}</span><span className="chip warn">Example</span></p>
+              <p className="eyebrow"><span className="tc">{s.at}</span><span className="chip">{s.tag}</span><span className="chip note">Example</span></p>
               <p><b>Problem.</b> {s.prob}</p>
               <p><b>Change.</b> {s.fix}</p>
             </div>

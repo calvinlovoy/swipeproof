@@ -44,7 +44,7 @@ section.band{padding-block:56px}
 .lede{font-size:1.15rem;color:var(--muted)}
 .muted{color:var(--muted)} .small{font-size:.9rem}
 .tc{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.9em}
-.eyebrow{font:500 .8rem/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.eyebrow{font:500 .8rem/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:flex;gap:8px 16px;align-items:center;flex-wrap:wrap}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px;display:flex;flex-direction:column;gap:12px}
 .card.lift{box-shadow:var(--shadow)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:10px 20px;border-radius:999px;border:1.5px solid var(--accent);background:var(--accent);color:var(--accent-ink);font:600 1rem/1 var(--body);text-decoration:none;cursor:pointer}
@@ -52,10 +52,21 @@ section.band{padding-block:56px}
 .btn.ghost{background:transparent;color:var(--accent)}
 .btn.quiet{background:transparent;border-color:var(--line);color:var(--ink)}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
-.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--accent-soft);color:var(--ink);font:500 .78rem/1.2 var(--mono);border:1px solid transparent}
-.chip.good{background:var(--good-soft);color:var(--good)} .chip.warn{background:var(--warn-soft);color:var(--warn)} .chip.bad{background:var(--bad-soft);color:var(--bad)}
-button.chip{cursor:pointer;min-height:36px;border-color:var(--line);background:var(--surface)}
-button.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+/* tags: a small marker and condensed caps, like a key on an edit timeline. Marker shape changes with state. */
+.chip{display:inline-flex;align-items:center;gap:7px;color:var(--ink);font:700 .78rem/1.2 var(--body);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.chip::before{content:"";flex:none;width:9px;height:9px;border-radius:2px;background:var(--accent)}
+.chip.good{color:var(--good)} .chip.warn{color:var(--warn)} .chip.bad{color:var(--bad)} .chip.note{color:var(--muted)}
+.chip.good::before{background:var(--good);border-radius:50%} .chip.warn::before{background:var(--warn);transform:rotate(45deg)} .chip.bad::before{background:var(--bad);width:11px;height:4px;border-radius:1px}
+.chip.note::before{background:none;border:1.5px solid var(--muted)}
+/* filter and choice buttons keep a button shape */
+button.chip{cursor:pointer;min-height:40px;padding:0 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:600 .92rem/1 var(--body);letter-spacing:0;text-transform:none}
+button.chip::before{display:none}
+button.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+/* platform line in the hero */
+.works{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;color:var(--muted);font:700 .78rem/1 var(--body);letter-spacing:.1em;text-transform:uppercase}
+.works svg{width:18px;height:22px;color:var(--accent);flex:none}
+.works b{display:inline-flex;align-items:center;gap:14px;color:var(--ink);font-weight:700}
+.works b+b::before{content:"";width:1.5px;height:14px;background:var(--line)}
 .good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
 /* header */
 .skip{position:absolute;left:-999px;top:8px}.skip:focus{left:12px;z-index:50}
@@ -185,8 +196,8 @@ a.card:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:va
 .btn{transition:transform .12s ease,filter .12s ease}.btn:hover{transform:translateY(-1px)}.btn:active{transform:scale(.97)}
 button.chip{transition:background-color .15s ease,color .15s ease,border-color .15s ease}
 
-/* all-caps labels: condensed cut of the display face */
-.eyebrow,.eyebrow .chip,.eyebrow .tc,.step-n,.dial .num span,footer.site h3{font-family:var(--display);font-stretch:75%;font-weight:700;letter-spacing:.11em;font-size:.92rem}
-.dial .num span{font-size:.8rem}.eyebrow .chip{padding:5px 10px}
+/* all-caps labels: the body face in bold, tracked out */
+.eyebrow,.eyebrow .tc,.step-n,.dial .num span,footer.site h3{font-family:var(--body);font-weight:700;letter-spacing:.1em;font-size:.78rem}
+.dial .num span{font-size:.7rem}
 section[id],#result{scroll-margin-top:84px}
 .track .pin.l{transform:none;left:0}.track .pin.l::after{left:12px}.track .pin.r{transform:none;left:auto;right:0}.track .pin.r::after{left:auto;right:12px}
