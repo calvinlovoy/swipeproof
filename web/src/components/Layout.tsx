@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router';
-import { ToastContext } from '../lib/hooks';
+import { ToastContext, useAuth } from '../lib/hooks';
 
 const NAV: [to: string, label: string][] = [['/tools', 'Tools'], ['/blog', 'Blog'], ['/pricing', 'Pricing'], ['/affiliates', 'Affiliates'], ['/library', 'Library']];
 
@@ -16,6 +16,7 @@ function Logo() {
 
 export function Layout({ children }: { children: ReactNode }) {
   const { pathname, hash } = useLocation();
+  const { user } = useAuth();
   const main = useRef<HTMLElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState({ message: '', on: false });
@@ -48,6 +49,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <nav className={`main${menuOpen ? ' open' : ''}`} id="nav" aria-label="Main">
             <ul>
               {NAV.map(([to, label]) => <li key={to}><NavLink to={to}>{label}</NavLink></li>)}
+              <li>{user ? <NavLink to="/account">Account</NavLink> : <NavLink to="/login">Log in</NavLink>}</li>
               <li><Link className="btn" to="/get-started">Get started</Link></li>
             </ul>
           </nav>

@@ -2,7 +2,7 @@
 
 Scores short-form video hooks, scripts and clips, and gives a specific change for every weak moment.
 
-This repo is step 2 of the production plan: the single-page demo split into a React front end, an Express API and a SQLite database.
+A React front end, an Express API and a SQLite database, with accounts and a server-side video pipeline.
 
 ## Quick start
 
@@ -16,14 +16,30 @@ npm run dev
 - Site: http://localhost:5173
 - API: http://localhost:3001/api/health
 
-The database is created and seeded on first start. Vite proxies `/api` to the API in development.
+The database is created, migrated and seeded on first start. Vite proxies `/api` to the API in development.
+
+### Turning on full video analysis
+
+Full analysis runs on the server and has three layers. Each one switches on by itself when its requirement is met, and the server prints which are on at startup.
+
+| Layer | Needs | Without it |
+| --- | --- | --- |
+| Picture: frames, cuts, format | `ffmpeg` and `ffprobe` installed | Only the in-browser quick check is offered |
+| Speech: transcript, spoken hook and script scores | `OPENAI_API_KEY` | Reports cover the picture only |
+| Coach notes: written feedback | `ANTHROPIC_API_KEY` | Reports have scores and fixes, no notes |
+
+1. Install ffmpeg. On a Mac: `brew install ffmpeg`. On Ubuntu: `sudo apt install ffmpeg`.
+2. Copy `.env.example` to `.env` and add the keys you have.
+3. Restart `npm run dev`.
+
+To try the whole flow with no keys, put `AI_PROVIDER=demo` in `.env`. The transcript and coach notes are then canned sample text, and reports label them as demo text.
 
 ## Scripts
 
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | API with reload on :3001 and Vite on :5173 |
-| `npm test` | Unit tests for the scoring engine and API tests against an in-memory database |
+| `npm test` | Scoring, API, account and pipeline tests. Pipeline tests skip themselves if ffmpeg is missing. |
 | `npm run typecheck` | Strict TypeScript check for `web` and `server` |
 | `npm run build` | Builds the front end to `web/dist` and bundles the API to `server/dist` |
 | `npm start` | Runs the built API, which also serves the built front end |
@@ -34,48 +50,73 @@ The database is created and seeded on first start. Vite proxies `/api` to the AP
 ```bash
 npm ci
 npm run build
-PORT=8080 DATABASE_PATH=/var/lib/swipeproof/swipeproof.db npm start
+NODE_ENV=production PORT=8080 DATA_DIR=/var/lib/swipeproof TRUST_PROXY=1 npm start
 ```
 
-One Node process serves both the site and the API. Put it behind a reverse proxy that terminates TLS, and keep the SQLite file on a persistent disk. See `.env.example` for the two settings.
+One Node process serves both the site and the API. Put it behind a reverse proxy that terminates TLS and forwards the original `Host` header, and keep `DATA_DIR` on a persistent disk. `.env.example` lists every setting.
 
 ## Layout
 
 ```
-shared/            Pure TypeScript used by both sides
-  engine.ts        Hook, script and link scoring. No I/O.
-  validate.ts      Form rules. The browser uses them for instant feedback, the API enforces them.
+shared/               Pure TypeScript used by both sides
+  engine.ts           Hook, script and link scoring. No I/O.
+  video.ts            Visual scoring from sampled frames. Same rules in the browser and on the server.
+  validate.ts         Form rules. The browser uses them for instant feedback, the API enforces them.
 server/
-  src/app.ts       Express app factory: routes, validation, error handling
-  src/db.ts        SQLite schema, seed loader
-  src/index.ts     Process entry point
-  seed/content.json  Posts, plans, FAQ, platform guides
-  test/api.test.ts API tests (Vitest and Supertest)
+  src/app.ts          Express app factory: routes, ownership rules, uploads, error handling
+  src/auth.ts         Password hashing, sessions, sign-up, log-in, account deletion
+  src/db.ts           SQLite schema as numbered migrations, seed loader
+  src/pipeline/       ffmpeg.ts (frames, audio), providers.ts (speech to text, feedback),
+                      analyze.ts (one video, start to finish), jobs.ts (background queue)
+  seed/content.json   Posts, plans, FAQ, platform guides
+  test/               API, account and pipeline tests (Vitest and Supertest)
 web/
-  src/pages/       One file per area of the site
-  src/components/  Layout, report card, form fields
-  src/lib/api.ts   Typed API client
-  src/lib/video.ts In-browser frame sampling for uploaded videos
+  src/pages/          One file per area of the site
+  src/components/     Layout, report card, form fields
+  src/lib/api.ts      Typed API client
+  src/lib/video.ts    In-browser frame sampling for the quick check
 ```
+
+## How accounts work
+
+- Email and password. Passwords are hashed with scrypt and a per-user salt.
+- A login is a random token in an `HttpOnly`, `SameSite=Lax` cookie. Only the token's SHA-256 is stored, and sessions last 30 days.
+- Before signing in, a browser is known by a random id it sends as `x-client-id`. Signing up or logging in moves that browser's reports and form entries onto the account.
+- Signed-in users see their account's rows. Anonymous browsers see only unclaimed rows with their id.
+- Log-in attempts are limited to 10 per 15 minutes for each address and email. Sign-ups are limited to 5 an hour per address.
+- State-changing requests whose `Origin` is another site are refused.
+- An account can be deleted from the account page, which removes its reports.
+
+## How a full analysis runs
+
+1. The signed-in user uploads a video (200 MB and 5 minutes by default).
+2. The file is saved under `DATA_DIR/uploads` with a random name and a background job starts. The browser polls the job.
+3. `ffprobe` reads length and frame size. `ffmpeg` samples the same moments the quick check does, and `shared/video.ts` scores them.
+4. If a speech provider is set and the video has sound, the audio is extracted and transcribed. The transcript is scored with the hook and script rules, using the real speaking pace so timecodes match the recording.
+5. If a feedback provider is set, eight small stills, the transcript and the scores go to the model, which returns a summary and up to four fixes.
+6. The report is saved and the upload is deleted, whether the job succeeded or failed. Uploads left by a crash are removed at the next start.
+
+A failure in step 4 or 5 does not fail the job: the report is saved without that layer.
 
 ## API
 
-All routes are under `/api`. Routes marked with a dot need an `x-client-id` header (the web client sends one automatically).
+All routes are under `/api`. `•` needs `x-client-id` or a login. `★` needs a login.
 
 | Method | Route | Purpose |
 | --- | --- | --- |
-| GET | `/content` | Plans, FAQ, tools, steps, platform guides |
-| GET | `/posts?q=&category=&page=` | Search, filter and page articles |
-| GET | `/posts/:slug` | One article with older and newer links |
-| POST • | `/reports/hook` `{ text }` | Score a hook and save the report |
-| POST • | `/reports/script` `{ text }` | Score a script and save the report |
+| GET | `/capabilities` | Which analysis layers are on, and the limits |
+| GET | `/content`, `/posts`, `/posts/:slug` | Site content and articles |
+| POST | `/auth/signup`, `/auth/login`, `/auth/logout` | Accounts |
+| GET | `/auth/me` | The signed-in user, or null |
+| DELETE ★ | `/auth/account` `{ password }` | Delete the account and its reports |
+| POST • | `/reports/hook`, `/reports/script` `{ text }` | Score and save |
 | POST • | `/reports/video-link` `{ url }` | Save a simulated report for a supported link |
-| POST • | `/reports/video-upload` | Save a report computed in the browser |
-| GET • | `/reports`, `/reports/:id` | List or read your reports |
-| DELETE • | `/reports`, `/reports/:id` | Clear or delete |
+| POST • | `/reports/video-upload` | Save a quick check computed in the browser |
+| GET, DELETE • | `/reports`, `/reports/:id` | List, read, delete |
+| POST ★ | `/analyses` (multipart, field `video`) | Start a full analysis. Returns a job. |
+| GET ★ | `/analyses/:id` | Job status, stage and the report id when done |
 | GET • | `/me` | Stored plan, affiliate code and waiting list status |
 | POST • | `/contact`, `/waitlist`, `/affiliates`, `/checkout` | Validated and stored in `submissions` |
-| DELETE • | `/waitlist`, `/affiliates` | Withdraw |
 
 Validation failures return `400` with `{ message, errors: { field: message } }`.
 
@@ -83,26 +124,29 @@ Validation failures return `400` with `{ message, errors: { field: message } }`.
 
 Real:
 
-- Hook and script scoring, run on the server and saved
-- Uploaded video checks. Frames are sampled in the browser, so the file never leaves the device. Only the scores are sent.
+- Accounts, sessions and per-account libraries
+- Hook and script scoring
+- Quick video check in the browser, and full analysis on the server
 - Library, article search and every form, stored in SQLite
 
 Placeholders, each tied to a later step:
 
 | Placeholder | Where | Replaced in |
 | --- | --- | --- |
-| Anonymous `x-client-id` instead of accounts | `web/src/lib/api.ts`, `clientId()` in `server/src/app.ts` | Step 3, accounts |
-| Link reports use sample findings | `simulateUrlReport` in `shared/engine.ts` | Step 4 and 5, server pipeline |
-| Upload scores are computed by the client and only shape-checked | `parseVideoReport` in `server/src/app.ts` | Step 4, server pipeline |
-| Checkout records a plan and charges nothing | `/api/checkout` | Step 6, payments |
+| Link reports use sample findings | `simulateUrlReport` in `shared/engine.ts` | Step 5, link handling |
+| Checkout records a plan and charges nothing. Plans do not gate features yet. | `/api/checkout` | Step 6, payments |
 | Contact, waiting list and affiliate entries are stored but nothing is sent or tracked | `submissions` table | Step 7 |
+| No password reset or email verification | `server/src/auth.ts` | Step 7, needs email sending |
 | Legal page is draft text | `web/src/pages/Static.tsx` | Step 8 |
 
 ## Known gaps before real traffic
 
-- No rate limiting or abuse protection on the API
-- No accounts, so anyone who copies a client id can read that library
+- **The AI calls have not been run against the live services.** They compile against the official client libraries and are tested with stand-ins. Run one real analysis with your own keys before relying on them, and check the model names in `.env.example` are still current.
+- The scoring rules are reasoned guesses. They have not been checked against real retention data.
+- Uploads sit on local disk and jobs run inside the web process, one at a time. Move to object storage and a separate worker before heavy use.
+- Rate limits and the job queue live in memory, so they reset on restart and assume one server.
+- Sign-up reveals whether an email already has an account. Email verification in step 7 removes the need for that.
 - The `submissions` table holds names and emails. Decide on retention and access before collecting real ones.
 - SQLite suits one server. Move to Postgres if you need more than one instance.
 - `.npmrc` turns off dependency install scripts so the SQLite driver uses its prebuilt binary. If you add a dependency that needs an install script, run it by hand.
-- No front-end component tests yet. The API and engine are covered.
+- No front-end component tests yet. The API, accounts, pipeline and scoring are covered.

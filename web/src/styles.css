@@ -106,7 +106,7 @@ nav.main a.btn{color:var(--accent-ink);padding:0 18px;margin-left:8px}
 /* forms */
 .field{display:flex;flex-direction:column;gap:6px}
 label,.label{font-weight:600;font-size:.95rem}
-input[type=text],input[type=email],input[type=url],input[type=search],select,textarea{width:100%;font:400 1rem/1.4 var(--body);color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;min-height:46px}
+input[type=text],input[type=email],input[type=url],input[type=password],input[type=search],select,textarea{width:100%;font:400 1rem/1.4 var(--body);color:var(--ink);background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;min-height:46px}
 textarea{resize:vertical}
 input[aria-invalid="true"],textarea[aria-invalid="true"],select[aria-invalid="true"]{border-color:var(--bad)}
 .err{color:var(--bad);font-size:.9rem;font-weight:500}.err:empty{display:none}
@@ -201,3 +201,12 @@ button.chip{transition:background-color .15s ease,color .15s ease,border-color .
 .dial .num span{font-size:.7rem}
 section[id],#result{scroll-margin-top:84px}
 .track .pin.l{transform:none;left:0}.track .pin.l::after{left:12px}.track .pin.r{transform:none;left:auto;right:0}.track .pin.r::after{left:auto;right:12px}
+/* coach notes and the analysis depth choice */
+.finds li.ai{border-left-color:var(--accent)}
+.choice{display:flex;gap:12px;align-items:flex-start;padding:14px;border:1.5px solid var(--line);border-radius:12px;cursor:pointer;font-weight:400}
+.choice:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.choice:has(input:disabled){opacity:.6;cursor:not-allowed}
+.choice input{flex:none;width:18px;height:18px;margin:3px 0 0;accent-color:var(--accent)}
+.choice b{display:block;font-weight:600}
+.prog.busy i{width:40%;animation:slide 1.2s ease-in-out infinite}
+@keyframes slide{from{margin-left:-40%}to{margin-left:100%}}

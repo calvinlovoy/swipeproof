@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type DependencyList } from 'react';
 import { hasErrors, validate, type Errors, type Rules } from '@shared/validate';
-import { ApiError, type Content } from './api';
+import { ApiError, type Capabilities, type Content, type User } from './api';
 
 export const ContentContext = createContext<Content | null>(null);
 export function useContent(): Content {
@@ -8,6 +8,13 @@ export function useContent(): Content {
   if (!c) throw new Error('Content is not loaded yet');
   return c;
 }
+
+export const AuthContext = createContext<{ user: User | null; setUser: (user: User | null) => void }>({ user: null, setUser: () => {} });
+export const useAuth = () => useContext(AuthContext);
+
+const NO_CAPABILITIES: Capabilities = { fullAnalysis: false, transcription: false, feedback: false, demo: false, maxUploadMb: 200, maxSeconds: 300, dailyLimit: 20 };
+export const CapabilitiesContext = createContext<Capabilities>(NO_CAPABILITIES);
+export const useCapabilities = () => useContext(CapabilitiesContext);
 
 export const ToastContext = createContext<(message: string) => void>(() => {});
 export const useToast = () => useContext(ToastContext);

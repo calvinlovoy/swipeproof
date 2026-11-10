@@ -35,7 +35,7 @@ interface FieldProps {
   error?: string;
   onChange: (value: string) => void;
   hint?: ReactNode;
-  type?: 'text' | 'email' | 'url';
+  type?: 'text' | 'email' | 'url' | 'password';
   rows?: number;
   options?: readonly (readonly [value: string, label: string])[];
   placeholder?: string;
