@@ -4,7 +4,7 @@ import { band, type ReportType } from '@shared/engine';
 import { REPORT_LABEL, ReportView } from '../components/Report';
 import { Crumbs, PageHead, Status, toolPath } from '../components/ui';
 import { api } from '../lib/api';
-import { formatDate, useAsync, useContent, useToast } from '../lib/hooks';
+import { formatDate, useAsync, useAuth, useContent, useToast } from '../lib/hooks';
 import { NotFound } from './Static';
 
 const FILTERS: [key: 'all' | ReportType, label: string][] = [['all', 'All'], ['video', 'Videos'], ['hook', 'Hooks'], ['script', 'Scripts']];
@@ -12,7 +12,8 @@ const FILTERS: [key: 'all' | ReportType, label: string][] = [['all', 'All'], ['v
 export function Library() {
   const { tools, plans } = useContent();
   const toast = useToast();
-  const reports = useAsync(api.reports.list, []);
+  const { user } = useAuth();
+  const reports = useAsync(api.reports.list, [user?.id]);
   const me = useAsync(api.me, []);
   const [filter, setFilter] = useState<'all' | ReportType>('all');
   const [armed, setArmed] = useState<string | null>(null);
@@ -41,6 +42,7 @@ export function Library() {
       <PageHead title="Your library">Every report you run is kept here.{plan && <> Plan: <b>{plan.name}</b>.</>}</PageHead>
       {reports.loading || reports.error ? <Status loading={reports.loading} error={reports.error} retry={reports.reload} /> : (
         <div className="wrap stack" style={{ gap: 18 }}>
+          {!user && <p className="notice">These reports are tied to this browser. <Link to="/signup?next=/library">Create an account</Link> to keep them and reach them from any device.</p>}
           <div className="row" role="group" aria-label="Filter reports">
             {FILTERS.map(([key, label]) => (
               <button type="button" className="chip" key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>

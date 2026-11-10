@@ -1,11 +1,10 @@
-import { useRef, useState, type DragEvent, type FormEvent } from 'react';
-import { detectPlatform, timecode, words, WORDS_PER_SECOND, type Report } from '@shared/engine';
+import { useRef, useState, type FormEvent } from 'react';
+import { timecode, words, WORDS_PER_SECOND, type Report } from '@shared/engine';
 import { hookRules, scriptRules, validate } from '@shared/validate';
 import { FreshResult } from '../components/Report';
 import { Crumbs, Explainers, Field, FormError, PageHead, RelatedTools, ToolCards } from '../components/ui';
 import { api, ApiError } from '../lib/api';
 import { useDraft } from '../lib/hooks';
-import { analyzeFile } from '../lib/video';
 import { EXAMPLE_HOOK } from './Home';
 
 export function ToolsHub() {
@@ -113,93 +112,6 @@ export function ScriptAnalyzer() {
         ['Length', 'Speaking time is estimated at 150 words a minute.'],
       ]} />
       <RelatedTools skip="script" />
-    </>
-  );
-}
-
-export function VideoAnalyzer() {
-  const [mode, setMode] = useState<'upload' | 'link'>('link');
-  const [url, setUrl] = useState('');
-  const [urlError, setUrlError] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const [fileError, setFileError] = useState('');
-  const [over, setOver] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [report, setReport] = useState<Report | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
-
-  const pick = (f: File | undefined) => {
-    if (!f) return;
-    if (!f.type.startsWith('video/')) { setFile(null); setFileError('That file is not a video. Choose an MP4, MOV or WebM file.'); return; }
-    setFile(f); setFileError('');
-  };
-  const drop = (e: DragEvent) => { e.preventDefault(); setOver(false); pick(e.dataTransfer.files[0]); };
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (mode === 'link') {
-      const link = url.trim();
-      const local = !link ? 'Paste a link, or switch to Upload a file.' : detectPlatform(link) ? '' : 'That is not a TikTok, Instagram Reels or YouTube Shorts link. Check it and try again.';
-      if (local) { setUrlError(local); document.getElementById('vurl')?.focus(); return; }
-      setBusy(true); setUrlError('');
-      try { setReport(await api.reports.videoLink(link)); }
-      catch (err) { setUrlError(err instanceof ApiError ? err.errors.url ?? err.message : 'Something went wrong. Try again.'); }
-      finally { setBusy(false); }
-      return;
-    }
-    if (!file) { setFileError('Choose a video file first.'); fileInput.current?.focus(); return; }
-    setBusy(true); setProgress(0); setFileError('');
-    try {
-      const body = await analyzeFile(file, setProgress);
-      setReport(await api.reports.videoUpload(body));
-    } catch (err) {
-      setFileError(err instanceof ApiError ? err.message : 'This browser could not read that video. Export it as an MP4 (H.264) and try again.');
-    } finally { setBusy(false); }
-  };
-
-  return (
-    <>
-      <Crumbs trail={[['Tools', '/tools'], ['Video analyzer']]} />
-      <PageHead title="Video analyzer">Upload a clip for a real frame-by-frame check in your browser, or paste a link to see a sample report.</PageHead>
-      <div className="wrap stack" style={{ gap: 24 }}>
-        <form className="card stack" onSubmit={submit} noValidate>
-          <div className="row" role="group" aria-label="Source">
-            <button type="button" className="chip" aria-pressed={mode === 'upload'} onClick={() => setMode('upload')}>Upload a file</button>
-            <button type="button" className="chip" aria-pressed={mode === 'link'} onClick={() => setMode('link')}>Paste a link</button>
-          </div>
-
-          {mode === 'link' ? (
-            <Field id="vurl" type="url" label="TikTok, Instagram Reels or YouTube Shorts link" placeholder="https://www.tiktok.com/@name/video/123" autoComplete="off"
-              value={url} error={urlError} onChange={(v) => { setUrl(v); setUrlError(''); }} hint="Link reports are samples. Link analysis is not built yet." />
-          ) : (
-            <div className="stack">
-              <label className={`drop${over ? ' over' : ''}`} htmlFor="vfile" onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={drop}>
-                <input type="file" id="vfile" accept="video/*" ref={fileInput} aria-describedby="vfile-err" onChange={(e) => pick(e.target.files?.[0])} />
-                <b>Choose a video</b> or drop it here<br />
-                <span className="hint">{file ? `${file.name} (${(file.size / 1_048_576).toFixed(1)} MB)` : 'MP4, MOV or WebM. The file stays on your device.'}</span>
-              </label>
-              <p className="err" id="vfile-err" role="alert">{fileError}</p>
-            </div>
-          )}
-
-          {busy && mode === 'upload' && (
-            <div className="stack" style={{ gap: 6 }}>
-              <div className="prog" role="progressbar" aria-label="Analyzing frames" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}><i style={{ width: `${progress * 100}%` }} /></div>
-              <p className="hint">Sampling frames. This takes a few seconds.</p>
-            </div>
-          )}
-          <button className="btn" type="submit" disabled={busy} style={{ alignSelf: 'flex-start' }}>{busy ? 'Analyzing...' : 'Analyze video'}</button>
-        </form>
-        <FreshResult report={report} />
-      </div>
-      <Explainers title="What the video analyzer checks" items={[
-        ['Opening motion', 'How much the picture changes in the first three seconds.'],
-        ['Visual variety', 'Hard cuts and the longest stretch where nothing changes.'],
-        ['Format', 'Aspect ratio and resolution against a vertical phone feed.'],
-        ['Length and brightness', 'Running time and whether the footage is too dark to read.'],
-      ]} />
-      <RelatedTools skip="video" />
     </>
   );
 }

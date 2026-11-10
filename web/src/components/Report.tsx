@@ -52,6 +52,18 @@ export function ReportView({ report, focusOnMount = false }: { report: ReportBod
         <p className="notice">This is a sample report. Link analysis is not built yet, so link reports use example findings. Upload the file to get a real analysis.</p>
       )}
 
+      {report.coach && (
+        <div className="stack">
+          <h3 className="row" style={{ gap: 12 }}>Coach notes {report.coach.model === 'demo' ? <span className="chip warn">Demo text</span> : <span className="chip note">Written by AI</span>}</h3>
+          {report.coach.summary && <p>{report.coach.summary}</p>}
+          {report.coach.fixes.length > 0 && (
+            <ol className="finds">
+              {report.coach.fixes.map((f) => <li key={f.at + f.title} className="ai"><span className="tc">{f.at || 'Note'}</span><b>{f.title}</b><span className="fix">{f.fix}</span></li>)}
+            </ol>
+          )}
+        </div>
+      )}
+
       <div className="stack">
         <h3>Scores</h3>
         <ul className="bars">
@@ -104,7 +116,20 @@ export function ReportView({ report, focusOnMount = false }: { report: ReportBod
         </div>
       )}
 
-      {report.audio && <p className="hint">Audio and speech are not analyzed in this build. Scores come from frames sampled in your browser.</p>}
+      {report.transcript && (
+        <details>
+          <summary>Transcript</summary>
+          <p style={{ whiteSpace: 'pre-wrap' }}>{report.transcript}</p>
+        </details>
+      )}
+
+      {report.audio && (
+        <p className="hint">
+          {report.source === 'server'
+            ? 'Speech was not analyzed for this video. Scores come from the picture only.'
+            : <>This was a quick check in your browser, so scores come from the picture only. <Link to="/tools/video">Run a full analysis</Link> for speech and written feedback.</>}
+        </p>
+      )}
 
       <div className="row">
         <button className="btn" type="button" onClick={copy}>Copy summary</button>

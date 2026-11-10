@@ -52,3 +52,13 @@ export const checkoutRules: Rules = {
   name: { required: true, max: 120 },
   email: { required: true, email: true, max: 200 },
 };
+
+export const signupRules: Rules = {
+  email: { required: true, email: true, max: 200 },
+  password: { required: true, min: 10, max: 200 },
+  name: { max: 80 },
+};
+export const loginRules: Rules = {
+  email: { required: true, email: true, max: 200 },
+  password: { required: true, max: 200 },
+};

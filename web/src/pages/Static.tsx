@@ -166,7 +166,9 @@ export function About() {
           <ul className="ticklist stack" style={{ gap: 6 }}>
             <li>Hook scoring and the tightened rewrite</li>
             <li>Script scoring, timecodes and the pacing map</li>
-            <li>Uploaded video checks: frames are sampled in your browser for motion, cuts, brightness, format and length</li>
+            <li>Quick video checks: frames are sampled in your browser for motion, cuts, brightness, format and length</li>
+            <li>Accounts, with your reports saved to them</li>
+            <li>Full video analysis on the server: frames, plus speech and written feedback when the server has its AI keys</li>
             <li>The report library, article search and every form, all stored in a database</li>
           </ul>
         </div>
@@ -177,7 +179,7 @@ export function About() {
             <li>Checkout records a plan and charges nothing</li>
             <li>Affiliate codes are issued but do not track or pay</li>
             <li>Contact and waiting list entries are stored but no email is sent</li>
-            <li>Audio and speech are not analyzed</li>
+            <li>Password reset by email is not set up yet</li>
           </ul>
         </div>
         <div className="card">
@@ -228,10 +230,10 @@ export function Contact() {
 }
 
 const LEGAL: [id: string, heading: string, body: string][] = [
-  ['privacy', 'Privacy', 'This build stores the reports you run and the forms you submit in its database, linked to a random id kept in your browser. Video files you upload are read in your browser and are not sent to the server. Only the resulting scores are saved.'],
+  ['privacy', 'Privacy', 'Reports and form entries are stored in our database. With an account they are linked to it. Without one they are linked to a random id kept in your browser. A quick check reads your video in the browser and uploads nothing. A full analysis uploads the video to our server, which deletes the file as soon as the analysis finishes. To transcribe speech and write feedback, the server sends the audio, a few still frames and the transcript to AI providers (OpenAI and Anthropic). Passwords are stored only as salted hashes.'],
   ['terms', 'Terms', 'Swipeproof is an early build provided with no warranty. Scores are guidance on structure and format and are not a promise of reach or views. Plans shown are placeholders and cannot be purchased yet.'],
-  ['cookies', 'Cookies', 'This site sets no cookies and loads no analytics or advertising trackers. It uses browser storage to keep your drafts and the random id that links you to your reports.'],
-  ['gdpr', 'GDPR', 'You can delete your reports at any time from the library. To have form entries removed, send a request through the contact page. A full data access and erasure process will be in place before launch.'],
+  ['cookies', 'Cookies', 'This site sets one cookie, which keeps you logged in. It loads no analytics or advertising trackers. Browser storage holds your drafts and the random id used before you have an account.'],
+  ['gdpr', 'GDPR', 'You can delete single reports from the library, and delete your account with all of its reports from the account page. To have form entries removed, send a request through the contact page. A full data access process will be in place before launch.'],
 ];
 
 export function Legal() {

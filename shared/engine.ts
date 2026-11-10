@@ -17,9 +17,18 @@ export interface ReportBody {
   meta: [string, string][];
   tight?: string;
   map?: PaceSegment[];
+  /** True for link reports built from sample findings. */
   sim?: boolean;
+  /** True when sound was not analyzed (quick checks, or a full analysis with no transcription). */
   audio?: boolean;
+  /** Where a video report was computed. */
+  source?: 'browser' | 'server';
+  /** What was said, when the server transcribed the audio. */
+  transcript?: string;
+  /** Feedback written by an AI model from the frames, transcript and scores. */
+  coach?: CoachNotes;
 }
+export interface CoachNotes { summary: string; fixes: { at: string; title: string; fix: string }[]; model: string }
 export interface Report extends ReportBody { id: string; createdAt: string }
 
 export const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, Math.round(n)));
@@ -121,18 +130,23 @@ export function analyzeHook(text: string): ReportBody {
   };
 }
 
-export function analyzeScript(text: string): ReportBody {
+/**
+ * Scores a script. `wordsPerSecond` defaults to a normal speaking pace; pass the real pace
+ * (words in the transcript divided by the video length) to line timecodes up with a recording.
+ */
+export function analyzeScript(text: string, opts: { wordsPerSecond?: number } = {}): ReportBody {
+  const wps = opts.wordsPerSecond && opts.wordsPerSecond > 0 ? opts.wordsPerSecond : WORDS_PER_SECOND;
   const sentences = text.split(/\n+|(?<=[.!?])\s+/).map((s) => s.trim()).filter((s) => words(s).length);
   let acc = 0;
   const segs = sentences.map((s) => {
     const n = words(s).length;
     const fills = count(s, FILLER);
-    const seg = { s, n, start: acc / WORDS_PER_SECOND, end: (acc + n) / WORDS_PER_SECOND, risk: (n > 22 ? 2 : fills >= 2 || n > 16 ? 1 : 0) as 0 | 1 | 2 };
+    const seg = { s, n, start: acc / wps, end: (acc + n) / wps, risk: (n > 22 ? 2 : fills >= 2 || n > 16 ? 1 : 0) as 0 | 1 | 2 };
     acc += n;
     return seg;
   });
   const total = acc;
-  const duration = total / WORDS_PER_SECOND;
+  const duration = total / wps;
   const hook = analyzeHook(sentences[0] ?? '');
 
   const slice = (keep: (from: number, to: number) => boolean) => {
