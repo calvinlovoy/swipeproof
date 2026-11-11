@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import { analyzeScript, clamp, timecode, words, type ReportBody } from '../../../shared/engine';
+import { buildPreflight } from '../../../shared/preflight';
 import { buildVideoReport } from '../../../shared/video';
-import { extractAudio, extractStills, probe, sampleFrames } from './ffmpeg';
+import { detectCuts, extractAudio, extractStills, measureAudio, probe, sampleFrames } from './ffmpeg';
 import type { Providers } from './providers';
 
 export const MAX_SECONDS = Number(process.env.MAX_VIDEO_SECONDS ?? 300);
@@ -9,7 +10,7 @@ export const MAX_SECONDS = Number(process.env.MAX_VIDEO_SECONDS ?? 300);
 /** A problem the uploader can fix. Its message is shown to them as written. */
 export class AnalysisError extends Error {}
 
-export type Stage = 'Reading the video' | 'Sampling frames' | 'Transcribing speech' | 'Scoring' | 'Writing feedback';
+export type Stage = 'Reading the video' | 'Sampling frames' | 'Measuring cuts and sound' | 'Transcribing speech' | 'Scoring' | 'Writing feedback';
 
 /**
  * Full analysis of one uploaded file:
@@ -29,6 +30,17 @@ export async function analyzeVideo(file: string, fileName: string, fileSize: num
   const samples = await sampleFrames(file, info.duration);
   if (samples.length < 2) throw new AnalysisError('That file could not be read as a video. Export it as an MP4 and try again.');
   const report = buildVideoReport({ fileName, fileSize, duration: info.duration, width: info.width, height: info.height, samples, source: 'server' });
+
+  // Exact measurements. A failure here leaves the report without them and does not fail the job.
+  onStage('Measuring cuts and sound');
+  try {
+    const [cuts, audio] = await Promise.all([detectCuts(file), info.hasAudio ? measureAudio(file, info.duration) : Promise.resolve(null)]);
+    const { checks, traits } = buildPreflight({ duration: info.duration, width: info.width, height: info.height, fps: info.fps, cuts, audio, openingLuma: samples[0].luma });
+    report.preflight = checks;
+    report.traits = { ...traits, openMotion: report.metrics[0].score, brightness: report.metrics[4].score };
+  } catch (e) {
+    console.error('pre-flight measurements failed:', e instanceof Error ? e.message : e);
+  }
 
   let transcript = '';
   let transcribed = false;
@@ -62,6 +74,7 @@ export async function analyzeVideo(file: string, fileName: string, fileSize: num
       report.findings.push(...script.findings.map((f) => ({ ...f, title: `Spoken: ${f.title}` })));
       report.score = clamp(visualScore * 0.55 + script.score * 0.45);
       report.meta.push(['Words spoken', String(spoken)]);
+      if (report.traits) Object.assign(report.traits, { hookScore: script.metrics[0].score, scriptScore: script.score, wordsPerSecond: Math.round((spoken / info.duration) * 100) / 100 });
     } else {
       report.meta.push(['Speech', spoken ? 'A few words' : 'None detected']);
     }
@@ -78,5 +91,6 @@ export async function analyzeVideo(file: string, fileName: string, fileSize: num
       console.error('feedback failed:', e instanceof Error ? e.message : e);
     }
   }
+  if (report.traits) report.traits.score = report.score;
   return report;
 }

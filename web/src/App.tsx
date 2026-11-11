@@ -11,6 +11,7 @@ import { Blog, PostPage } from './pages/Blog';
 import Home from './pages/Home';
 import { Library, ReportPage } from './pages/Library';
 import { Checkout, Pricing } from './pages/Pricing';
+import { Results } from './pages/Results';
 import { About, Affiliates, Contact, GetStarted, Legal, NotFound, PlatformGuide } from './pages/Static';
 import { HookAnalyzer, ScriptAnalyzer, ToolsHub } from './pages/Tools';
 
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/tools/video" element={<VideoAnalyzer />} />
           <Route path="/library" element={<Library />} />
           <Route path="/reports/:id" element={<ReportPage />} />
+          <Route path="/results" element={<Results />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/blog" element={<Blog />} />
