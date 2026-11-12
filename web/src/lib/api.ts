@@ -1,4 +1,5 @@
 import type { Report, ReportBody } from '@shared/engine';
+import type { Metrics, OutcomeKey, TraitPattern } from '@shared/results';
 import type { Errors } from '@shared/validate';
 
 export type ToolId = 'video' | 'hook' | 'script';
@@ -20,6 +21,9 @@ export interface Me { plan: string | null; affiliateCode: string | null; waitlis
 export interface User { id: string; email: string; name: string; createdAt: string }
 export interface Capabilities { fullAnalysis: boolean; transcription: boolean; feedback: boolean; demo: boolean; maxUploadMb: number; maxSeconds: number; dailyLimit: number }
 export interface Job { id: string; status: 'queued' | 'running' | 'done' | 'failed'; stage: string; fileName: string; reportId: string | null; error: string | null }
+
+export interface ResultVideo { reportId: string; title: string; adName: string; score: number; traits: Record<string, number> | null; outcomes: Partial<Record<OutcomeKey, number>> }
+export interface ResultsPage { videos: ResultVideo[]; patterns: Record<OutcomeKey, { videos: number; patterns: TraitPattern[] }>; minVideos: number }
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public errors: Errors = {}) { super(message); }
@@ -98,6 +102,11 @@ export const api = {
     script: (text: string) => req<Report>('POST', '/reports/script', { text }),
     videoLink: (url: string) => req<Report>('POST', '/reports/video-link', { url }),
     videoUpload: (body: ReportBody) => req<Report>('POST', '/reports/video-upload', body),
+  },
+  results: {
+    get: () => req<ResultsPage>('GET', '/results'),
+    save: (rows: { reportId: string; adName: string; metrics: Metrics }[]) => req<{ saved: number }>('PUT', '/results', { rows }),
+    clear: () => req<void>('DELETE', '/results'),
   },
   me: () => req<Me>('GET', '/me'),
   contact: (v: Record<string, string>) => req<{ topic: string }>('POST', '/contact', v),

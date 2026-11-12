@@ -138,12 +138,13 @@ export function Account() {
           </ul>
           <div className="row" style={{ marginTop: 'auto' }}>
             <Link className="btn ghost" to="/library">Open library</Link>
+            <Link className="btn ghost" to="/results">Results</Link>
             <button type="button" className="btn quiet" onClick={logout}>Log out</button>
           </div>
         </div>
         <div className="card">
           <h3>Delete account</h3>
-          <p className="muted">Removes your account and every report saved to it. This cannot be undone.</p>
+          <p className="muted">Removes your account, every report saved to it and any ad results you added. This cannot be undone.</p>
           {confirming ? (
             <form className="stack" noValidate onSubmit={remove}>
               <Field id="del-password" label="Your password" type="password" autoComplete="current-password" value={password} error={error} onChange={(v) => { setPassword(v); setError(''); }} />

@@ -42,6 +42,7 @@ export function Library() {
       <PageHead title="Your library">Every report you run is kept here.{plan && <> Plan: <b>{plan.name}</b>.</>}</PageHead>
       {reports.loading || reports.error ? <Status loading={reports.loading} error={reports.error} retry={reports.reload} /> : (
         <div className="wrap stack" style={{ gap: 18 }}>
+          {user && all.some((r) => r.traits) && <p className="hint">Ran these as ads? <Link to="/results">Add the results</Link> to see which measurements tracked with performance.</p>}
           {!user && <p className="notice">These reports are tied to this browser. <Link to="/signup?next=/library">Create an account</Link> to keep them and reach them from any device.</p>}
           <div className="row" role="group" aria-label="Filter reports">
             {FILTERS.map(([key, label]) => (

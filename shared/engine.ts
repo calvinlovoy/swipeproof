@@ -25,9 +25,15 @@ export interface ReportBody {
   source?: 'browser' | 'server';
   /** What was said, when the server transcribed the audio. */
   transcript?: string;
+  /** Exact measurements from a full analysis: cut timing, sound, frame. */
+  preflight?: Check[];
+  /** The same measurements as plain numbers, used to look for patterns against results. */
+  traits?: Record<string, number>;
   /** Feedback written by an AI model from the frames, transcript and scores. */
   coach?: CoachNotes;
 }
+/** One measured pre-flight item with a pass, caution or fail mark. */
+export interface Check { name: string; value: string; status: 'pass' | 'warn' | 'fail'; note: string }
 export interface CoachNotes { summary: string; fixes: { at: string; title: string; fix: string }[]; model: string }
 export interface Report extends ReportBody { id: string; createdAt: string }
 

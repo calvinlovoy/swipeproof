@@ -82,6 +82,17 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX jobs_by_user ON jobs (user_id, created_at DESC);
   `,
+  // 3: ad results attached to analyzed videos
+  `
+  CREATE TABLE results (
+    report_id  TEXT PRIMARY KEY REFERENCES reports (id) ON DELETE CASCADE,
+    user_id    TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    ad_name    TEXT NOT NULL,
+    metrics    TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX results_by_user ON results (user_id);
+  `,
 ];
 
 function migrate(db: DB): void {

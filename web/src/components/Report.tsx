@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { band, summarize, type Report, type ReportBody } from '@shared/engine';
 import { useCountUp, useToast } from '../lib/hooks';
 
+const CHECK_MARK = { pass: ['Pass', 'good'], warn: ['Check', 'warn'], fail: ['Fix', 'bad'] } as const;
 export const REPORT_LABEL = { hook: 'Hook report', script: 'Script report', video: 'Video report' } as const;
 
 function Dial({ score }: { score: number }) {
@@ -79,6 +80,21 @@ export function ReportView({ report, focusOnMount = false }: { report: ReportBod
           })}
         </ul>
       </div>
+
+      {report.preflight && report.preflight.length > 0 && (
+        <div className="stack">
+          <h3>Pre-flight checks</h3>
+          <ul className="checks">
+            {report.preflight.map((c) => (
+              <li key={c.name}>
+                <span className={`chip ${CHECK_MARK[c.status][1]}`}>{CHECK_MARK[c.status][0]}</span>
+                <div><b>{c.name}</b> <span className="tc">{c.value}</span><p>{c.note}</p></div>
+              </li>
+            ))}
+          </ul>
+          <p className="hint">Measured from the file itself. The pass marks are starting points. <Link to="/results">Add your ad results</Link> to see which ones matter for your account.</p>
+        </div>
+      )}
 
       {report.map && (
         <div className="stack">

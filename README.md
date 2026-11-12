@@ -61,12 +61,14 @@ One Node process serves both the site and the API. Put it behind a reverse proxy
 shared/               Pure TypeScript used by both sides
   engine.ts           Hook, script and link scoring. No I/O.
   video.ts            Visual scoring from sampled frames. Same rules in the browser and on the server.
+  preflight.ts        Pass, check and fix marks from exact measurements (cuts, sound, frame)
+  results.ts          CSV reading, row matching and the trait-against-result statistics
   validate.ts         Form rules. The browser uses them for instant feedback, the API enforces them.
 server/
   src/app.ts          Express app factory: routes, ownership rules, uploads, error handling
   src/auth.ts         Password hashing, sessions, sign-up, log-in, account deletion
   src/db.ts           SQLite schema as numbered migrations, seed loader
-  src/pipeline/       ffmpeg.ts (frames, audio), providers.ts (speech to text, feedback),
+  src/pipeline/       ffmpeg.ts (frames, cuts, loudness, audio), providers.ts (speech to text, feedback),
                       analyze.ts (one video, start to finish), jobs.ts (background queue)
   seed/content.json   Posts, plans, FAQ, platform guides
   test/               API, account and pipeline tests (Vitest and Supertest)
@@ -85,18 +87,30 @@ web/
 - Signed-in users see their account's rows. Anonymous browsers see only unclaimed rows with their id.
 - Log-in attempts are limited to 10 per 15 minutes for each address and email. Sign-ups are limited to 5 an hour per address.
 - State-changing requests whose `Origin` is another site are refused.
-- An account can be deleted from the account page, which removes its reports.
+- An account can be deleted from the account page, which removes its reports and ad results.
 
 ## How a full analysis runs
 
 1. The signed-in user uploads a video (200 MB and 5 minutes by default).
 2. The file is saved under `DATA_DIR/uploads` with a random name and a background job starts. The browser polls the job.
 3. `ffprobe` reads length and frame size. `ffmpeg` samples the same moments the quick check does, and `shared/video.ts` scores them.
-4. If a speech provider is set and the video has sound, the audio is extracted and transcribed. The transcript is scored with the hook and script rules, using the real speaking pace so timecodes match the recording.
-5. If a feedback provider is set, eight small stills, the transcript and the scores go to the model, which returns a summary and up to four fixes.
-6. The report is saved and the upload is deleted, whether the job succeeded or failed. Uploads left by a crash are removed at the next start.
+4. `ffmpeg` then measures the whole file: where the hard cuts fall, the frame rate, loudness in LUFS, the true peak, when sound first starts and any long silent stretch. `shared/preflight.ts` turns those into pre-flight checks and stores the raw numbers on the report as `traits`.
+5. If a speech provider is set and the video has sound, the audio is extracted and transcribed. The transcript is scored with the hook and script rules, using the real speaking pace so timecodes match the recording.
+6. If a feedback provider is set, eight small stills, the transcript and the scores go to the model, which returns a summary and up to four fixes.
+7. The report is saved and the upload is deleted, whether the job succeeded or failed. Uploads left by a crash are removed at the next start.
 
-A failure in step 4 or 5 does not fail the job: the report is saved without that layer.
+A failure in step 4, 5 or 6 does not fail the job: the report is saved without that layer.
+
+## How results work
+
+The Results page takes a CSV export from an ads manager and connects it to analyzed videos.
+
+1. The browser reads the file. It guesses which columns hold the ad name, impressions, 3-second plays, ThruPlays, link clicks, amount spent and results, and the user can correct each guess. Rows that share an ad name are added together.
+2. Each row is matched to a fully analyzed video by name, and the user confirms or changes every match. Only matched rows are sent to the server.
+3. The server stores the raw counts per video and derives hook rate (3-second plays over impressions), hold rate (ThruPlays over 3-second plays), click-through rate and cost per result.
+4. For each rate, every measured trait is compared across the user's videos with a rank correlation and a split at the trait's median. Patterns appear once five videos have that rate, and each side of a split needs two videos.
+
+This is correlation over a small set of one account's videos. The page says so and frames each pattern as something to test.
 
 ## API
 
@@ -115,6 +129,9 @@ All routes are under `/api`. `•` needs `x-client-id` or a login. `★` needs a
 | GET, DELETE • | `/reports`, `/reports/:id` | List, read, delete |
 | POST ★ | `/analyses` (multipart, field `video`) | Start a full analysis. Returns a job. |
 | GET ★ | `/analyses/:id` | Job status, stage and the report id when done |
+| PUT ★ | `/results` `{ rows: [{ reportId, adName, metrics }] }` | Attach ad results to the caller's own video reports |
+| GET ★ | `/results` | Videos with results, their rates and the patterns found |
+| DELETE ★ | `/results` | Remove every stored result |
 | GET • | `/me` | Stored plan, affiliate code and waiting list status |
 | POST • | `/contact`, `/waitlist`, `/affiliates`, `/checkout` | Validated and stored in `submissions` |
 
@@ -126,7 +143,8 @@ Real:
 
 - Accounts, sessions and per-account libraries
 - Hook and script scoring
-- Quick video check in the browser, and full analysis on the server
+- Quick video check in the browser, and full analysis on the server with measured pre-flight checks
+- Ad results upload and the patterns between measurements and results
 - Library, article search and every form, stored in SQLite
 
 Placeholders, each tied to a later step:
@@ -142,7 +160,9 @@ Placeholders, each tied to a later step:
 ## Known gaps before real traffic
 
 - **The AI calls have not been run against the live services.** They compile against the official client libraries and are tested with stand-ins. Run one real analysis with your own keys before relying on them, and check the model names in `.env.example` are still current.
-- The scoring rules are reasoned guesses. They have not been checked against real retention data.
+- The scoring rules and the pre-flight pass marks are reasoned guesses. They have not been checked against real retention data. The Results page is how an account tests them against its own numbers.
+- The results upload has been tested with a hand-written CSV in the shape of a Meta Ads Manager export. Try real exports from each ad platform and adjust the column patterns in `shared/results.ts`.
+- Pre-flight does not read on-screen text, so it cannot check captions or safe zones yet.
 - Uploads sit on local disk and jobs run inside the web process, one at a time. Move to object storage and a separate worker before heavy use.
 - Rate limits and the job queue live in memory, so they reset on restart and assume one server.
 - Sign-up reveals whether an email already has an account. Email verification in step 7 removes the need for that.

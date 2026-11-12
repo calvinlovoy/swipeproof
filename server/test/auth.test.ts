@@ -124,12 +124,12 @@ describe('migrations', () => {
   it('upgrades a database created before accounts existed', () => {
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'sp-mig-')), 'old.db');
     const old = openDb(file);
-    old.exec('DROP TABLE jobs; DROP TABLE sessions; DROP INDEX reports_by_user; ALTER TABLE reports DROP COLUMN user_id; ALTER TABLE submissions DROP COLUMN user_id; DROP TABLE users;');
+    old.exec('DROP TABLE results; DROP TABLE jobs; DROP TABLE sessions; DROP INDEX reports_by_user; ALTER TABLE reports DROP COLUMN user_id; ALTER TABLE submissions DROP COLUMN user_id; DROP TABLE users;');
     old.pragma('user_version = 0'); // how step 2 databases look
     old.prepare("INSERT INTO reports (id, client_id, type, title, score, body, created_at) VALUES ('r1', 'client-aaaaaaaa', 'hook', 't', 50, '{}', '2026-01-01')").run();
     old.close();
     const upgraded = openDb(file);
-    expect(upgraded.pragma('user_version', { simple: true })).toBe(2);
+    expect(upgraded.pragma('user_version', { simple: true })).toBe(3);
     expect(upgraded.prepare('SELECT user_id FROM reports WHERE id = ?').get('r1')).toEqual({ user_id: null });
     expect(upgraded.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 0 });
     upgraded.close();

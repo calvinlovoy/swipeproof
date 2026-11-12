@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { analyzeHook, analyzeScript, detectPlatform, simulateUrlReport, words, type Report, type ReportBody } from '../../shared/engine';
+import { findPatterns, METRIC_KEYS, MIN_VIDEOS, OUTCOMES, outcomes, type Metrics, type OutcomeKey } from '../../shared/results';
 import { affiliateRules, checkoutRules, contactRules, hasErrors, hookRules, scriptRules, validate, waitlistRules, type Rules } from '../../shared/validate';
 import { authRouter, currentUser, requireUser, sameOriginOnly, type User } from './auth';
 import { DATA_DIR, SERVER_ROOT, type DB } from './db';
@@ -212,6 +213,45 @@ export function createApp(db: DB, options: AppOptions = {}) {
     const job = queue.get(req.params.id, requireUser(db, req).id);
     if (!job) throw new HttpError(404, 'That analysis was not found.');
     res.json(job);
+  });
+
+  // ---- results: ad performance attached to fully analyzed videos, and the patterns between them ----
+  api.put('/results', (req, res) => {
+    const user = requireUser(db, req);
+    const rows: unknown = req.body?.rows;
+    if (!Array.isArray(rows) || rows.length === 0 || rows.length > 500) throw new HttpError(400, 'Send between 1 and 500 matched rows.');
+    const owns = db.prepare("SELECT 1 FROM reports WHERE id = ? AND user_id = ? AND type = 'video'");
+    const save = db.prepare('INSERT INTO results (report_id, user_id, ad_name, metrics, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT (report_id) DO UPDATE SET ad_name = excluded.ad_name, metrics = excluded.metrics, created_at = excluded.created_at');
+    let saved = 0;
+    db.transaction(() => {
+      for (const raw of rows as { reportId?: unknown; adName?: unknown; metrics?: Record<string, unknown> }[]) {
+        if (typeof raw?.reportId !== 'string' || typeof raw.adName !== 'string' || !owns.get(raw.reportId, user.id)) continue;
+        const metrics: Metrics = {};
+        for (const key of METRIC_KEYS) { const v = raw.metrics?.[key]; if (typeof v === 'number' && Number.isFinite(v) && v >= 0) metrics[key] = v; }
+        if (!Object.keys(metrics).length) continue;
+        save.run(raw.reportId, user.id, raw.adName.trim().slice(0, 200), JSON.stringify(metrics), new Date().toISOString());
+        saved += 1;
+      }
+    })();
+    if (!saved) throw new HttpError(400, 'None of those rows matched a video in your library.');
+    res.json({ saved });
+  });
+  api.get('/results', (req, res) => {
+    const user = requireUser(db, req);
+    const rows = db.prepare('SELECT r.id, r.body, x.ad_name, x.metrics FROM results x JOIN reports r ON r.id = x.report_id WHERE x.user_id = ? ORDER BY r.created_at DESC').all(user.id) as { id: string; body: string; ad_name: string; metrics: string }[];
+    const videos = rows.map((row) => {
+      const body = JSON.parse(row.body) as ReportBody;
+      return { reportId: row.id, title: body.title, adName: row.ad_name, score: body.score, traits: body.traits ?? null, outcomes: outcomes(JSON.parse(row.metrics) as Metrics) };
+    });
+    const patterns = Object.fromEntries((Object.keys(OUTCOMES) as OutcomeKey[]).map((key) => {
+      const points = videos.filter((v) => v.traits && v.outcomes[key] !== undefined).map((v) => ({ traits: v.traits!, outcome: v.outcomes[key]! }));
+      return [key, { videos: points.length, patterns: findPatterns(points, OUTCOMES[key].higherIsBetter) }];
+    }));
+    res.json({ videos, patterns, minVideos: MIN_VIDEOS });
+  });
+  api.delete('/results', (req, res) => {
+    db.prepare('DELETE FROM results WHERE user_id = ?').run(requireUser(db, req).id);
+    res.status(204).end();
   });
 
   // ---- forms. Nothing is emailed or charged yet: rows land in `submissions`. ----

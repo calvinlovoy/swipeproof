@@ -6,7 +6,7 @@ import request from 'supertest';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp, type AppOptions } from '../src/app';
 import { openDb, seed } from '../src/db';
-import { probe } from '../src/pipeline/ffmpeg';
+import { detectCuts, measureAudio, probe } from '../src/pipeline/ffmpeg';
 import { coachContext, parseCoachReply, providersFromEnv, type CoachInput, type Providers } from '../src/pipeline/providers';
 
 const HEADERS = { 'x-client-id': 'client-aaaaaaaa' };
@@ -16,6 +16,7 @@ const work = fs.mkdtempSync(path.join(os.tmpdir(), 'sp-pipe-'));
 const clip = path.join(work, 'clip.mp4');
 const silent = path.join(work, 'silent.mp4');
 const notVideo = path.join(work, 'fake.mp4');
+const cuts = path.join(work, 'cuts.mp4');
 
 describe('coach reply parsing', () => {
   it('reads JSON even when the model wraps it in prose or a code fence', () => {
@@ -61,6 +62,8 @@ describe.skipIf(!hasFfmpeg)('full analysis (needs ffmpeg)', () => {
     const gen = (args: string[]) => { const r = spawnSync('ffmpeg', ['-v', 'error', '-y', ...args]); if (r.status !== 0) throw new Error(r.stderr.toString()); };
     gen(['-f', 'lavfi', '-i', 'testsrc2=s=360x640:d=6:r=24', '-f', 'lavfi', '-i', 'sine=f=440:d=6', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', clip]);
     gen(['-f', 'lavfi', '-i', 'color=c=black:s=640x360:d=5:r=24', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', silent]);
+    // Three flat colors with hard cuts at 2 s and 4 s, and a soundtrack that is silent for the first 1.5 s.
+    gen([...['red', 'blue', 'green'].flatMap((c) => ['-f', 'lavfi', '-i', `color=c=${c}:s=360x640:d=2:r=24`]), '-f', 'lavfi', '-i', "aevalsrc='if(lt(t,1.5),0,0.5*sin(2*PI*440*t))':d=6", '-filter_complex', '[0:v][1:v][2:v]concat=n=3:v=1:a=0[v]', '-map', '[v]', '-map', '3:a', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', cuts]);
     fs.writeFileSync(notVideo, 'this is not a video');
   });
   beforeEach(() => { uploadDir = fs.mkdtempSync(path.join(work, 'up-')); seen = null; });
@@ -70,6 +73,44 @@ describe.skipIf(!hasFfmpeg)('full analysis (needs ffmpeg)', () => {
     expect((await probe(silent)).hasAudio).toBe(false);
     await expect(probe(notVideo)).rejects.toThrow();
   });
+
+  it('measures cuts, frame rate, loudness and when sound starts', async () => {
+    expect((await probe(cuts)).fps).toBe(24);
+    const found = await detectCuts(cuts);
+    expect(found).toHaveLength(2);
+    expect(found[0]).toBeCloseTo(2, 1);
+    expect(found[1]).toBeCloseTo(4, 1);
+    expect(await detectCuts(silent)).toEqual([]);
+    const audio = await measureAudio(cuts, 6);
+    expect(audio.firstSound).toBeGreaterThan(1.3);
+    expect(audio.firstSound).toBeLessThan(1.7);
+    expect(audio.loudness).toBeLessThan(0);
+    expect(audio.loudness).toBeGreaterThan(-40);
+    expect(audio.longestSilence).toBeNull();
+    expect((await measureAudio(clip, 6)).firstSound).toBe(0);
+  }, 30_000);
+
+  it('puts pre-flight checks and plain-number traits on the report', async () => {
+    const { app, agent } = await start();
+    const queued = await agent.post('/api/analyses').set(HEADERS).attach('video', cuts, { contentType: 'video/mp4' }).expect(202);
+    const report = (await agent.get(`/api/reports/${(await finished(app, agent, queued.body.id)).reportId}`).set(HEADERS).expect(200)).body;
+    const check = (name: string) => report.preflight.find((c: { name: string }) => c.name === name);
+    expect(check('First cut')).toMatchObject({ status: 'pass' });
+    expect(check('First cut').value).toMatch(/^at 2\.0 s$/);
+    expect(check('Cut rate').value).toMatch(/^2 cuts/);
+    expect(check('First sound')).toMatchObject({ status: 'warn' });
+    expect(check('Frame')).toMatchObject({ value: '360×640', status: 'warn' });
+    expect(check('Frame rate')).toMatchObject({ value: '24 fps', status: 'pass' });
+    expect(check('Loudness')).toBeTruthy();
+    expect(report.traits).toMatchObject({ duration: 6, firstCut: 2, fps: 24, score: report.score });
+    expect(Object.keys(report.traits)).toEqual(expect.arrayContaining(['cutsPer10s', 'firstSound', 'loudness', 'openMotion', 'brightness', 'hookScore', 'scriptScore', 'wordsPerSecond']));
+
+    const quiet = await agent.post('/api/analyses').set(HEADERS).attach('video', silent, { contentType: 'video/mp4' }).expect(202);
+    const silentReport = (await agent.get(`/api/reports/${(await finished(app, agent, quiet.body.id)).reportId}`).set(HEADERS)).body;
+    const names = silentReport.preflight.map((c: { name: string; status: string }) => `${c.name}:${c.status}`);
+    expect(names).toEqual(expect.arrayContaining(['Sound:warn', 'Opening frame:fail', 'Frame:fail']));
+    expect(silentReport.traits.loudness).toBeUndefined();
+  }, 60_000);
 
   it('analyzes an upload end to end and deletes the file', async () => {
     const { app, agent } = await start();
