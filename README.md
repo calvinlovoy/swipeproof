@@ -63,11 +63,14 @@ shared/               Pure TypeScript used by both sides
   video.ts            Visual scoring from sampled frames. Same rules in the browser and on the server.
   preflight.ts        Pass, check and fix marks from exact measurements (cuts, sound, frame)
   results.ts          CSV reading, row matching and the trait-against-result statistics
+  seo.ts              Title, description, canonical path and index rule for every route
   validate.ts         Form rules. The browser uses them for instant feedback, the API enforces them.
 server/
   src/app.ts          Express app factory: routes, ownership rules, uploads, error handling
   src/auth.ts         Password hashing, sessions, sign-up, log-in, account deletion
   src/db.ts           SQLite schema as numbered migrations, seed loader
+  src/posts.ts        Article queries, shared by the API and the server-sent pages
+  src/seo.ts          Head tags, readable page content, robots.txt and the sitemap
   src/pipeline/       ffmpeg.ts (frames, cuts, loudness, audio), providers.ts (speech to text, feedback),
                       analyze.ts (one video, start to finish), jobs.ts (background queue)
   seed/content.json   Posts, plans, FAQ, platform guides
@@ -101,6 +104,20 @@ web/
 
 A failure in step 4, 5 or 6 does not fail the job: the report is saved without that layer.
 
+## How search engines see the site
+
+The app is a single-page React app, so the server does the work that crawlers and link previews need. This applies to the production build (`npm run build`, then `npm start`). The Vite dev server sends the bare shell and the browser fills in the head tags.
+
+- **One document per page.** For every page route the server fills the built `index.html` with that page's title, description, canonical link, Open Graph and Twitter tags, and structured data (Organization and WebSite on the home page, BreadcrumbList on inner pages, BlogPosting on articles). `shared/seo.ts` holds the text, and a test checks every indexed page has a unique title of 60 characters or fewer and a description of 50 to 160.
+- **Readable without JavaScript.** The same response carries the page's content as plain HTML inside `#root`: headings, article text, tool and guide links, plans. The app replaces it on start. It also embeds the public API responses the page needs first, so the takeover has no loading step.
+- **Real status codes.** Unknown addresses, missing articles and unknown platform guides return 404 with `noindex`. A trailing slash redirects to the address without it.
+- **Private pages stay out.** Log-in, sign-up, account, library, results, checkout and saved reports carry `noindex`, and API responses send `X-Robots-Tag: noindex`.
+- **`/robots.txt` and `/sitemap.xml`** are generated. The sitemap lists the public pages, platform guides and every article with its date.
+- **Navigation in the browser** updates the title, description, canonical link and robots tag through `useHead` in `web/src/lib/hooks.tsx`.
+- **Caching.** Files under `/assets` have a content hash in their name and are cached for a year. HTML is revalidated on every request.
+
+Set `SITE_URL` before launch so canonical links and the sitemap use the real address. When you add a page, add it to `PAGES` in `shared/seo.ts` and, if it has content worth reading without JavaScript, to `body` in `server/src/seo.ts`.
+
 ## How results work
 
 The Results page takes a CSV export from an ads manager and connects it to analyzed videos.
@@ -118,6 +135,7 @@ All routes are under `/api`. `•` needs `x-client-id` or a login. `★` needs a
 
 | Method | Route | Purpose |
 | --- | --- | --- |
+| GET | `/robots.txt`, `/sitemap.xml` (not under `/api`) | Crawl rules and the list of public pages |
 | GET | `/capabilities` | Which analysis layers are on, and the limits |
 | GET | `/content`, `/posts`, `/posts/:slug` | Site content and articles |
 | POST | `/auth/signup`, `/auth/login`, `/auth/logout` | Accounts |
@@ -163,6 +181,9 @@ Placeholders, each tied to a later step:
 - The scoring rules and the pre-flight pass marks are reasoned guesses. They have not been checked against real retention data. The Results page is how an account tests them against its own numbers.
 - The results upload has been tested with a hand-written CSV in the shape of a Meta Ads Manager export. Try real exports from each ad platform and adjust the column patterns in `shared/results.ts`.
 - Pre-flight does not read on-screen text, so it cannot check captions or safe zones yet.
+- The server-sent page content is a plain version written by hand in `server/src/seo.ts`, so it can drift from the React pages. About, contact, legal, get started and affiliates send only their heading and opening line that way.
+- Fonts load from Google Fonts with a render-blocking stylesheet. Hosting the font files yourself would speed up the first paint.
+- Pricing and affiliates are indexable and describe things that are still placeholders. Add them to the noindex list in `shared/seo.ts` if the site goes public before payments exist.
 - Uploads sit on local disk and jobs run inside the web process, one at a time. Move to object storage and a separate worker before heavy use.
 - Rate limits and the job queue live in memory, so they reset on restart and assume one server.
 - Sign-up reveals whether an email already has an account. Email verification in step 7 removes the need for that.

@@ -37,6 +37,12 @@ export function Layout({ children }: { children: ReactNode }) {
     main.current?.focus({ preventScroll: true });
   }, [pathname, hash]);
 
+  // The first page arrives already drawn by the server, so its entrance animation is off. Every later page gets it.
+  const firstPage = useRef(pathname);
+  useEffect(() => {
+    if (pathname !== firstPage.current) document.documentElement.classList.remove('no-enter');
+  }, [pathname]);
+
   return (
     <ToastContext.Provider value={showToast}>
       <button className="skip btn" type="button" onClick={() => { main.current?.focus(); main.current?.scrollIntoView(); }}>Skip to content</button>

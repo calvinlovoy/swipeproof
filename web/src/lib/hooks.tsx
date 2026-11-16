@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type DependencyList } from 'react';
+import type { PageMeta } from '@shared/seo';
 import { hasErrors, validate, type Errors, type Rules } from '@shared/validate';
 import { ApiError, type Capabilities, type Content, type User } from './api';
 
@@ -19,11 +20,15 @@ export const useCapabilities = () => useContext(CapabilitiesContext);
 export const ToastContext = createContext<(message: string) => void>(() => {});
 export const useToast = () => useContext(ToastContext);
 
-/** Runs an async loader and tracks its state. `reload` runs it again. */
-export function useAsync<T>(load: () => Promise<T>, deps: DependencyList) {
-  const [state, setState] = useState<{ data: T | null; error: ApiError | null; loading: boolean }>({ data: null, error: null, loading: true });
+/** Runs an async loader and tracks its state. `reload` runs it again. `initial` skips the first load. */
+export function useAsync<T>(load: () => Promise<T>, deps: DependencyList, initial?: T) {
+  const [state, setState] = useState<{ data: T | null; error: ApiError | null; loading: boolean }>({ data: initial ?? null, error: null, loading: initial === undefined });
   const [tick, setTick] = useState(0);
+  const first = useRef(true);
   useEffect(() => {
+    const skip = first.current && initial !== undefined;
+    first.current = false;
+    if (skip) return;
     let live = true;
     setState((s) => ({ ...s, loading: true, error: null }));
     load().then(
@@ -83,6 +88,37 @@ export function useDraft(key: string, fallback = ''): [string, (v: string) => vo
     try { localStorage.setItem(`sp:${key}`, v); } catch { /* storage unavailable */ }
   }, [key]);
   return [value, set];
+}
+
+function setTag(selector: string, create: () => HTMLElement, attribute: string, value: string | null) {
+  let tag = document.head.querySelector<HTMLElement>(selector);
+  if (value === null) { tag?.remove(); return; }
+  if (!tag) { tag = create(); document.head.appendChild(tag); }
+  tag.setAttribute(attribute, value);
+}
+const metaTag = (key: 'name' | 'property', id: string) => () => { const m = document.createElement('meta'); m.setAttribute(key, id); return m; };
+
+/**
+ * Keeps the title, description, canonical link and robots tag in step with the page on screen.
+ * The server writes the same tags into the first response. This covers every later navigation.
+ */
+export function useHead(meta: PageMeta | null) {
+  const key = meta ? `${meta.path}|${meta.title}|${meta.index}|${meta.status}` : '';
+  useEffect(() => {
+    if (!meta) return;
+    const canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    // The server knows the site's public address. Reuse it when it is on the page.
+    const base = canonical?.href ? new URL(canonical.href).origin : window.location.origin;
+    const url = base + (meta.path === '/' ? '/' : meta.path);
+    document.title = meta.title;
+    setTag('meta[name="description"]', metaTag('name', 'description'), 'content', meta.description);
+    setTag('link[rel="canonical"]', () => { const l = document.createElement('link'); l.rel = 'canonical'; return l; }, 'href', meta.status === 200 ? url : null);
+    setTag('meta[name="robots"]', metaTag('name', 'robots'), 'content', meta.index ? null : 'noindex');
+    setTag('meta[property="og:title"]', metaTag('property', 'og:title'), 'content', meta.title);
+    setTag('meta[property="og:description"]', metaTag('property', 'og:description'), 'content', meta.description);
+    setTag('meta[property="og:url"]', metaTag('property', 'og:url'), 'content', url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 }
 
 export const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;

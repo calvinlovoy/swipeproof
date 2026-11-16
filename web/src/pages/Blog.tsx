@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
+import { postMeta } from '@shared/seo';
 import { Crumbs, PageHead, Status, toolPath } from '../components/ui';
-import { api } from '../lib/api';
-import { formatDate, useAsync, useContent } from '../lib/hooks';
+import { api, postPath, postsPath, takePreloaded, type Post, type PostPage as PostList } from '../lib/api';
+import { formatDate, useAsync, useContent, useHead } from '../lib/hooks';
 import { NotFound } from './Static';
 
 export function Blog() {
@@ -11,7 +12,7 @@ export function Blog() {
   const [category, setCategory] = useState('All');
   const [page, setPage] = useState(1);
   useEffect(() => { const t = setTimeout(() => setDebounced(query.trim()), 200); return () => clearTimeout(t); }, [query]);
-  const posts = useAsync(() => api.posts({ q: debounced, category, page }), [debounced, category, page]);
+  const posts = useAsync(() => api.posts({ q: debounced, category, page }), [debounced, category, page], takePreloaded<PostList>(postsPath({ q: debounced, category, page })));
   const [categories, setCategories] = useState<string[]>([]);
   useEffect(() => { if (posts.data) setCategories(posts.data.categories); }, [posts.data]);
 
@@ -70,7 +71,8 @@ export function Blog() {
 export function PostPage() {
   const { slug = '' } = useParams();
   const { tools } = useContent();
-  const post = useAsync(() => api.post(slug), [slug]);
+  const post = useAsync(() => api.post(slug), [slug], takePreloaded<Post>(postPath(slug)));
+  useHead(post.data ? postMeta(post.data) : null);
   if (post.error?.status === 404) return <NotFound message={post.error.message} />;
   const p = post.data;
   if (!p) return <Status loading={post.loading} error={post.error} retry={post.reload} />;

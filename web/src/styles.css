@@ -229,3 +229,6 @@ table.data select{min-height:40px;padding:6px 10px;min-width:180px}
 .split i{flex:none;width:34px;border-radius:5px 5px 0 0;background:var(--line);min-height:4px}.split i.win{background:var(--accent)}
 .split span{font:500 .78rem/1.2 var(--mono);color:var(--muted);margin-right:10px}
 @media (max-width:560px){.patterns li{grid-template-columns:1fr}}
+/* the server-sent version of a page shows at once, and the app takes over from it without replaying the entrance */
+main.pre>*,.no-enter main>*{animation:none}
+main.pre>.page-h:first-child{padding-top:36px}main.pre article.post{padding-top:36px}

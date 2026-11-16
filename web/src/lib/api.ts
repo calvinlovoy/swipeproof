@@ -39,7 +39,19 @@ const clientId = (() => {
   } catch { return fresh(); }
 })();
 
+/**
+ * Public API responses the server embedded in the page it sent, keyed by request path. They let
+ * the app start from the same content the visitor is already looking at. Dropped after a few
+ * seconds so later visits to a page always ask the server.
+ */
+let preloaded: Record<string, unknown> = (() => {
+  try { return JSON.parse(document.getElementById('preload')?.textContent ?? '{}') as Record<string, unknown>; } catch { return {}; }
+})();
+setTimeout(() => { preloaded = {}; }, 5000);
+export const takePreloaded = <T,>(path: string): T | undefined => preloaded[path] as T | undefined;
+
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
+  if (method === 'GET' && path in preloaded) return preloaded[path] as T;
   let res: Response;
   try {
     res = await fetch(`/api${path}`, {
@@ -76,6 +88,9 @@ function uploadVideo(file: File, onProgress: (fraction: number) => void): Promis
   });
 }
 
+export const postsPath = (p: { q: string; category: string; page: number }) => `/posts?${new URLSearchParams({ q: p.q, category: p.category, page: String(p.page) })}`;
+export const postPath = (slug: string) => `/posts/${encodeURIComponent(slug)}`;
+
 export const api = {
   auth: {
     me: () => req<{ user: User | null }>('GET', '/auth/me'),
@@ -90,9 +105,8 @@ export const api = {
     get: (id: string) => req<Job>('GET', `/analyses/${encodeURIComponent(id)}`),
   },
   content: () => req<Content>('GET', '/content'),
-  posts: (p: { q: string; category: string; page: number }) =>
-    req<PostPage>('GET', `/posts?${new URLSearchParams({ q: p.q, category: p.category, page: String(p.page) })}`),
-  post: (slug: string) => req<Post>('GET', `/posts/${encodeURIComponent(slug)}`),
+  posts: (p: { q: string; category: string; page: number }) => req<PostPage>('GET', postsPath(p)),
+  post: (slug: string) => req<Post>('GET', postPath(slug)),
   reports: {
     list: () => req<Report[]>('GET', '/reports'),
     get: (id: string) => req<Report>('GET', `/reports/${encodeURIComponent(id)}`),

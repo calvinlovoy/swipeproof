@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useLocation, useParams } from 'react-router';
+import { notFoundMeta } from '@shared/seo';
 import { affiliateRules, contactRules, DEVICES, TOPICS, waitlistRules } from '@shared/validate';
 import { Crumbs, Field, FormError, PageHead, Status } from '../components/ui';
 import { api } from '../lib/api';
-import { useAsync, useContent, useForm, useToast } from '../lib/hooks';
+import { useAsync, useContent, useForm, useHead, useToast } from '../lib/hooks';
 
 export function NotFound({ message = 'That address does not match a page.' }: { message?: string }) {
+  useHead(notFoundMeta(useLocation().pathname));
   return (
     <>
       <PageHead title="Page not found">{message}</PageHead>

@@ -10,6 +10,8 @@ import { authRouter, currentUser, requireUser, sameOriginOnly, type User } from 
 import { DATA_DIR, SERVER_ROOT, type DB } from './db';
 import { HttpError, invalid } from './http';
 import { MAX_SECONDS } from './pipeline/analyze';
+import { getPost, listPosts } from './posts';
+import { createSeo } from './seo';
 import { JobQueue } from './pipeline/jobs';
 import type { Providers } from './pipeline/providers';
 
@@ -22,6 +24,10 @@ export interface AppOptions {
   maxUploadMb?: number;
   /** Full analyses one account may start per 24 hours. */
   dailyLimit?: number;
+  /** Public address of the site, such as https://example.com. Defaults to SITE_URL, then to the request's own host. */
+  siteUrl?: string;
+  /** Folder holding the built front end. Defaults to web/dist. */
+  webDist?: string;
 }
 
 interface ReportRow { id: string; body: string; created_at: string }
@@ -58,6 +64,7 @@ export function createApp(db: DB, options: AppOptions = {}) {
   app.use(express.json({ limit: '100kb' }));
 
   const api = express.Router();
+  api.use((_req, res, next) => { res.setHeader('X-Robots-Tag', 'noindex'); next(); });
 
   const actor = (req: Request): Actor => {
     const user = currentUser(db, req);
@@ -112,29 +119,13 @@ export function createApp(db: DB, options: AppOptions = {}) {
     res.json(Object.fromEntries(rows.map((r) => [r.key, JSON.parse(r.value)])));
   });
 
-  const POST_COLUMNS = 'slug, title, category, published_on AS publishedOn, minutes, tool, excerpt';
   api.get('/posts', (req, res) => {
-    const q = String(req.query.q ?? '').trim().toLowerCase().slice(0, 80);
-    const category = String(req.query.category ?? '').trim();
-    const pageSize = 4;
-    const where: string[] = [];
-    const args: string[] = [];
-    if (category && category !== 'All') { where.push('category = ?'); args.push(category); }
-    if (q) { where.push("lower(title || ' ' || excerpt || ' ' || body) LIKE ?"); args.push(`%${q.replace(/[%_]/g, '')}%`); }
-    const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
-    const { n: total } = db.prepare(`SELECT COUNT(*) AS n FROM posts ${clause}`).get(...args) as { n: number };
-    const pages = Math.max(1, Math.ceil(total / pageSize));
-    const page = Math.min(pages, Math.max(1, Number.parseInt(String(req.query.page ?? '1'), 10) || 1));
-    const items = db.prepare(`SELECT ${POST_COLUMNS} FROM posts ${clause} ORDER BY published_on DESC LIMIT ? OFFSET ?`).all(...args, pageSize, (page - 1) * pageSize);
-    const categories = (db.prepare('SELECT DISTINCT category FROM posts ORDER BY category').all() as { category: string }[]).map((r) => r.category);
-    res.json({ items, total, page, pages, pageSize, categories });
+    res.json(listPosts(db, { q: String(req.query.q ?? ''), category: String(req.query.category ?? ''), page: Number.parseInt(String(req.query.page ?? '1'), 10) }));
   });
   api.get('/posts/:slug', (req, res) => {
-    const row = db.prepare(`SELECT ${POST_COLUMNS}, body FROM posts WHERE slug = ?`).get(req.params.slug) as ({ publishedOn: string; body: string } & Record<string, unknown>) | undefined;
-    if (!row) throw new HttpError(404, 'That article does not exist.');
-    const older = db.prepare('SELECT slug, title FROM posts WHERE published_on < ? ORDER BY published_on DESC LIMIT 1').get(row.publishedOn) ?? null;
-    const newer = db.prepare('SELECT slug, title FROM posts WHERE published_on > ? ORDER BY published_on ASC LIMIT 1').get(row.publishedOn) ?? null;
-    res.json({ ...row, body: JSON.parse(row.body), older, newer });
+    const post = getPost(db, req.params.slug);
+    if (!post) throw new HttpError(404, 'That article does not exist.');
+    res.json(post);
   });
 
   // ---- reports ----
@@ -301,11 +292,32 @@ export function createApp(db: DB, options: AppOptions = {}) {
   api.use((_req, _res, next) => next(new HttpError(404, 'No such endpoint.')));
   app.use('/api', sameOriginOnly, api);
 
-  // Serve the built front end when it exists, with a fallback for client-side routes.
-  const dist = path.resolve(SERVER_ROOT, '..', 'web', 'dist');
+  // ---- search engines: robots.txt, the sitemap and a page-specific HTML document for every route ----
+  const seo = createSeo(db, options.siteUrl);
+  const originOf = (req: Request) => `${req.protocol}://${req.get('host') ?? 'localhost'}`;
+  app.get('/robots.txt', (req, res) => { res.type('text/plain').send(seo.robots(originOf(req))); });
+  app.get('/sitemap.xml', (req, res) => { res.type('application/xml').send(seo.sitemap(originOf(req))); });
+
+  // Serve the built front end when it exists. Every page route gets its own head tags, readable
+  // content and status code, so a missing page is a real 404 and not the home page with a 200.
+  const dist = options.webDist ?? path.resolve(SERVER_ROOT, '..', 'web', 'dist');
   if (fs.existsSync(path.join(dist, 'index.html'))) {
+    const template = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
+    const missing = (_req: Request, res: Response) => { res.status(404).type('text/plain').send('Not found'); };
+    // Built assets have a content hash in their name, so browsers can keep them for a year.
+    app.use('/assets', express.static(path.join(dist, 'assets'), { immutable: true, maxAge: '1y' }), missing);
     app.use(express.static(dist, { index: false, maxAge: '1h' }));
-    app.use((req, res, next) => (req.method === 'GET' ? res.sendFile(path.join(dist, 'index.html')) : next()));
+    app.use((req, res, next) => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') { next(); return; }
+      if (req.path.length > 1 && req.path.endsWith('/')) {
+        // One address per page: /blog/ moves to /blog. Leading slashes are collapsed so this cannot redirect off-site.
+        res.redirect(301, `/${req.path.replace(/^\/+|\/+$/g, '')}${req.url.slice(req.path.length)}`);
+        return;
+      }
+      if (/\.[a-z0-9]{2,5}$/i.test(req.path)) { missing(req, res); return; }
+      const page = seo.page(template, req.path, originOf(req));
+      res.status(page.status).set('Cache-Control', 'no-cache').type('html').send(page.html);
+    });
   }
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

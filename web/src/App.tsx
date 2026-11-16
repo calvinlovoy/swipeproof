@@ -1,10 +1,11 @@
-import { Route, Routes } from 'react-router';
+import { pageMeta } from '@shared/seo';
+import { Route, Routes, useLocation } from 'react-router';
 import { Layout } from './components/Layout';
 import { Status } from './components/ui';
 import { api } from './lib/api';
 import { useState } from 'react';
-import type { User } from './lib/api';
-import { AuthContext, CapabilitiesContext, ContentContext, useAsync } from './lib/hooks';
+import type { Capabilities, Content, User } from './lib/api';
+import { AuthContext, CapabilitiesContext, ContentContext, useAsync, useContent, useHead } from './lib/hooks';
 import { Account, Login, Signup } from './pages/Auth';
 import { VideoAnalyzer } from './pages/VideoAnalyzer';
 import { Blog, PostPage } from './pages/Blog';
@@ -15,9 +16,21 @@ import { Results } from './pages/Results';
 import { About, Affiliates, Contact, GetStarted, Legal, NotFound, PlatformGuide } from './pages/Static';
 import { HookAnalyzer, ScriptAnalyzer, ToolsHub } from './pages/Tools';
 
-export default function App() {
-  // Site content, who is signed in and what the server can do, loaded together before the first render.
-  const boot = useAsync(() => Promise.all([api.content(), api.auth.me(), api.capabilities()]), []);
+export type Boot = [Content, { user: User | null }, Capabilities];
+/** Site content, who is signed in and what the server can do. */
+export const loadBoot = (): Promise<Boot> => Promise.all([api.content(), api.auth.me(), api.capabilities()]);
+
+/** Sets the head tags for the current route. Pages that load their own subject, such as an article, refine them. */
+function RouteHead() {
+  const { pathname } = useLocation();
+  const { platforms } = useContent();
+  useHead(pageMeta(pathname, { platforms }));
+  return null;
+}
+
+export default function App({ initial }: { initial?: Boot }) {
+  // Loaded before the first render. When the server sent a readable page, main.tsx loads this first and passes it in.
+  const boot = useAsync(loadBoot, [], initial);
   const [signedIn, setSignedIn] = useState<User | null | undefined>(undefined);
   if (!boot.data) {
     return <Layout><Status loading={boot.loading} error={boot.error} retry={boot.reload} /></Layout>;
@@ -29,6 +42,7 @@ export default function App() {
     <CapabilitiesContext.Provider value={capabilities}>
     <ContentContext.Provider value={content}>
       <Layout>
+        <RouteHead />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/tools" element={<ToolsHub />} />

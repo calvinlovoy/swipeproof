@@ -11,6 +11,6 @@ export default defineConfig({
   server: {
     port: 5173,
     fs: { allow: ['..'] },
-    proxy: { '/api': 'http://localhost:3001' },
+    proxy: { '/api': 'http://localhost:3001', '/robots.txt': 'http://localhost:3001', '/sitemap.xml': 'http://localhost:3001' },
   },
 });
